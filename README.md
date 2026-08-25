@@ -105,29 +105,29 @@ TalentBridge uses a decoupled client-server architecture:
 
 ```mermaid
 graph TD
-    subgraph Frontend [Next.js App Router Client]
-        CareersPage[Public Careers Page /]
-        JobDetail[Job Detail & Social Share /jobs/:id]
-        AuthModule[Auth: Candidate Login / Register]
-        Wizard[4-Step Application Wizard /apply/:jobId]
-        MyApps[My Applications /my-applications]
-        AdminDashboard[Admin Dashboard /admin/dashboard]
+    subgraph Frontend ["Next.js App Router Client"]
+        CareersPage["Public Careers Page (/)"]
+        JobDetail["Job Detail & Share (/jobs/:id)"]
+        AuthModule["Auth: Candidate Login / Register"]
+        Wizard["4-Step Application Wizard (/apply/:jobId)"]
+        MyApps["My Applications (/my-applications)"]
+        AdminDashboard["Admin Dashboard (/admin/dashboard)"]
     end
 
-    subgraph Backend [FastAPI REST API]
-        AuthRouter[/api/auth - Login / Register / Me]
-        JobsRouter[/api/jobs - CRUD Requisitions]
-        AppsRouter[/api/applications - Draft / Submit / Upload / Triage]
-        NotifsRouter[/api/notifications - In-App Alerts]
-        StaticMount[/uploads - Resume File Serving]
-        EmailService[Async SMTP Dispatcher]
+    subgraph Backend ["FastAPI REST API"]
+        AuthRouter["/api/auth - Login / Register / Me"]
+        JobsRouter["/api/jobs - CRUD Requisitions"]
+        AppsRouter["/api/applications - Draft / Submit / Upload"]
+        NotifsRouter["/api/notifications - In-App Alerts"]
+        StaticMount["/uploads - Resume File Serving"]
+        EmailService["Async SMTP Dispatcher"]
     end
 
-    subgraph Storage [PostgreSQL Database]
-        UsersTable[(users)]
-        JobsTable[(job_requisitions)]
-        AppsTable[(applications)]
-        NotifsTable[(notifications)]
+    subgraph Storage ["PostgreSQL Database"]
+        UsersTable[("users")]
+        JobsTable[("job_requisitions")]
+        AppsTable[("applications")]
+        NotifsTable[("notifications")]
     end
 
     CareersPage --> JobsRouter

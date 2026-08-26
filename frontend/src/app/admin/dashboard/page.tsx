@@ -32,6 +32,7 @@ export default function AdminConsole() {
 
   // Create Requisition Modal State (Includes BRD Page 14 extra fields)
   const [showJobModal, setShowJobModal] = useState(false);
+  const [editingJobId, setEditingJobId] = useState<number | null>(null);
   const [newJob, setNewJob] = useState({
     job_title: "",
     department: "Engineering",
@@ -74,30 +75,69 @@ export default function AdminConsole() {
     }
   }, [user, authLoading, router]);
 
-  const handleCreateJob = async (e: React.FormEvent, publishImmediately: boolean) => {
+  const openCreateJobModal = () => {
+    setEditingJobId(null);
+    setNewJob({
+      job_title: "",
+      department: "Engineering",
+      location: "Hyderabad, IN",
+      employment_type: "Full-time",
+      experience_range: "3-6 years",
+      salary_budget: "",
+      hiring_deadline: "",
+      description: "",
+      status: "open",
+    });
+    setShowJobModal(true);
+  };
+
+  const openEditJobModal = (job: any) => {
+    setEditingJobId(job.id);
+    setNewJob({
+      job_title: job.job_title || "",
+      department: job.department || "Engineering",
+      location: job.location || "Hyderabad, IN",
+      employment_type: job.employment_type || "Full-time",
+      experience_range: job.experience_range || "",
+      salary_budget: job.salary_budget || "",
+      hiring_deadline: job.hiring_deadline ? job.hiring_deadline.split("T")[0] : "",
+      description: job.description || "",
+      status: job.status || "open",
+    });
+    setShowJobModal(true);
+  };
+
+  const handleSaveJob = async (e: React.FormEvent, targetStatus?: string) => {
     e.preventDefault();
     try {
       const payload = {
         ...newJob,
-        status: publishImmediately ? "open" : "draft",
+        status: targetStatus || newJob.status,
         hiring_deadline: newJob.hiring_deadline ? new Date(newJob.hiring_deadline).toISOString() : null,
       };
-      await api.post("/jobs/admin", payload);
+
+      if (editingJobId) {
+        await api.patch(`/jobs/admin/${editingJobId}`, payload);
+        alert("Job requisition updated successfully! Changes are now live.");
+      } else {
+        await api.post("/jobs/admin", payload);
+        alert(targetStatus === "open" ? "Job requisition published successfully!" : "Job requisition saved as draft.");
+      }
+
       setShowJobModal(false);
-      setNewJob({
-        job_title: "",
-        department: "Engineering",
-        location: "Hyderabad, IN",
-        employment_type: "Full-time",
-        experience_range: "5-8 years",
-        salary_budget: "",
-        hiring_deadline: "",
-        description: "",
-        status: "open",
-      });
+      setEditingJobId(null);
       fetchData();
     } catch (err) {
-      alert("Failed to create job requisition.");
+      alert("Failed to save job requisition.");
+    }
+  };
+
+  const handleQuickStatusToggle = async (jobId: number, newStatus: string) => {
+    try {
+      await api.patch(`/jobs/admin/${jobId}`, { status: newStatus });
+      fetchData();
+    } catch (err) {
+      alert("Failed to update job status.");
     }
   };
 
@@ -362,7 +402,7 @@ export default function AdminConsole() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowJobModal(true)}
+                    onClick={openCreateJobModal}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg text-sm shadow transition"
                   >
                     + New Job Requisition
@@ -378,11 +418,11 @@ export default function AdminConsole() {
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">Job Requisitions</h2>
-                  <p className="text-xs text-slate-500">Manage published job openings and drafts.</p>
+                  <p className="text-xs text-slate-500">Manage, edit, publish, draft, and close job openings.</p>
                 </div>
                 <button
-                  onClick={() => setShowJobModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm transition"
+                  onClick={openCreateJobModal}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-1.5"
                 >
                   + Create Job Requisition
                 </button>
@@ -398,25 +438,72 @@ export default function AdminConsole() {
                       <th className="p-4">Location</th>
                       <th className="p-4">Salary Budget</th>
                       <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {jobs.map((job) => (
-                      <tr key={job.id} className="hover:bg-slate-50">
-                        <td className="p-4 font-semibold text-blue-600">REQ-2026-00{job.id}</td>
-                        <td className="p-4 font-medium text-slate-900">{job.job_title}</td>
-                        <td className="p-4">{job.department}</td>
-                        <td className="p-4">{job.location}</td>
-                        <td className="p-4">{job.salary_budget || "Not Specified"}</td>
-                        <td className="p-4">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase ${
-                            job.status === "open" ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"
-                          }`}>
-                            {job.status === "open" ? "Published" : "Draft"}
-                          </span>
+                    {jobs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400">
+                          No job requisitions created yet. Click "+ Create Job Requisition" to get started.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      jobs.map((job) => (
+                        <tr key={job.id} className="hover:bg-slate-50">
+                          <td className="p-4 font-semibold text-blue-600">REQ-2026-00{job.id}</td>
+                          <td className="p-4 font-bold text-slate-900">{job.job_title}</td>
+                          <td className="p-4">{job.department}</td>
+                          <td className="p-4">{job.location}</td>
+                          <td className="p-4">{job.salary_budget || "Not Specified"}</td>
+                          <td className="p-4">
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase ${
+                              job.status === "open"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : job.status === "closed"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {job.status === "open" ? "Published (Live)" : job.status === "closed" ? "Closed" : "Draft"}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Edit Button */}
+                              <button
+                                onClick={() => openEditJobModal(job)}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-200 transition flex items-center gap-1"
+                              >
+                                ✏️ Edit
+                              </button>
+
+                              {/* Quick Status Dropdown */}
+                              <select
+                                value={job.status}
+                                onChange={(e) => handleQuickStatusToggle(job.id, e.target.value)}
+                                className="text-xs p-1.5 border rounded-lg bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="open">Publish (Live)</option>
+                                <option value="draft">Draft</option>
+                                <option value="closed">Close</option>
+                              </select>
+
+                              {/* View live link if published */}
+                              {job.status === "open" && (
+                                <Link
+                                  href={`/jobs/${job.id}`}
+                                  target="_blank"
+                                  className="text-xs text-slate-500 hover:text-blue-600 p-1.5 hover:bg-slate-100 rounded-lg transition"
+                                  title="View on Public Career Portal"
+                                >
+                                  ↗
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -831,24 +918,28 @@ export default function AdminConsole() {
         </main>
       </div>
 
-      {/* CREATE JOB REQUISITION MODAL (BRD Page 14) */}
+      {/* CREATE / EDIT JOB REQUISITION MODAL (BRD Page 14) */}
       {showJobModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6 pb-4 border-b">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Create Job Requisition</h2>
-                <p className="text-xs text-slate-500">Fill in the requisition details and requirements.</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {editingJobId ? `Edit Job Requisition (#REQ-2026-00${editingJobId})` : "Create Job Requisition"}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingJobId ? "Update details, requirements, or change live publication status." : "Fill in the requisition details and requirements."}
+                </p>
               </div>
               <button
-                onClick={() => setShowJobModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                onClick={() => { setShowJobModal(false); setEditingJobId(null); }}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
               >
                 ✕
               </button>
             </div>
 
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={(e) => handleSaveJob(e, newJob.status)}>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title *</label>
                 <input
@@ -874,6 +965,8 @@ export default function AdminConsole() {
                     <option value="Product">Product</option>
                     <option value="Human Resources">Human Resources</option>
                     <option value="Quality Assurance">Quality Assurance</option>
+                    <option value="Infrastructure">Infrastructure</option>
+                    <option value="Sales & Marketing">Sales & Marketing</option>
                   </select>
                 </div>
                 <div>
@@ -918,17 +1011,17 @@ export default function AdminConsole() {
               {/* Extra BRD Page 14 fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Maximum Salary Budget</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Salary Budget / Compensation</label>
                   <input
                     type="text"
-                    placeholder="e.g. $140k - $160k"
+                    placeholder="e.g. $140k - $160k or ₹18L - ₹24L"
                     value={newJob.salary_budget}
                     onChange={(e) => setNewJob({ ...newJob, salary_budget: e.target.value })}
                     className="w-full p-2.5 border rounded-lg text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hiring Shall Be Completed By</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hiring Deadline</label>
                   <input
                     type="date"
                     value={newJob.hiring_deadline}
@@ -950,21 +1043,32 @@ export default function AdminConsole() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-between items-center pt-4 border-t">
                 <button
                   type="button"
-                  onClick={(e) => handleCreateJob(e, false)}
-                  className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                  onClick={() => { setShowJobModal(false); setEditingJobId(null); }}
+                  className="px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition"
                 >
-                  Save as Draft
+                  Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={(e) => handleCreateJob(e, true)}
-                  className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow transition"
-                >
-                  Publish Requisition
-                </button>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveJob(e, "draft")}
+                    className="px-4 py-2.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition"
+                  >
+                    Save as Draft
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveJob(e, "open")}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/20 transition"
+                  >
+                    {editingJobId ? "Save & Update Live 🚀" : "Publish Requisition 🚀"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

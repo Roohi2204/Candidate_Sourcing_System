@@ -36,6 +36,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db), current_user: U
     return job
 
 @router.put("/admin/{job_id}", response_model=JobResponse)
+@router.patch("/admin/{job_id}", response_model=JobResponse)
 def update_job(job_id: int, job_in: JobUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_admin)):
     job = db.query(JobRequisition).filter(JobRequisition.id == job_id).first()
     if not job:
